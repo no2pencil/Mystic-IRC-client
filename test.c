@@ -9,6 +9,7 @@ int main(void) {
 	char Buff[MAX]={0};
 	char command[MAX]={0};
 	char output[MAX]={0};
+	char *quit="/quit";
 	int  i=0, ln=0;
 	
 	initscr();
@@ -33,14 +34,16 @@ int main(void) {
 				i++;
 				break;
 			}
+			ln++;
 			i++;
 		}
 		Buff[i]='\0';
+		output[i]='\0';
 		if(Buff[0]!='\n' || Buff[0]!='\r') {
 			if(Buff[0]=='/') {
 				sprintf(command,"%s", Buff);
 				sprintf(output, "Command ... %s",Buff);
-				if(strcmp(Buff,"/quit")==0) {
+				if(strstr(command,quit)>0) {
 					endwin();
 					printf("Exiting clean...\n");
 					return 0;
@@ -53,7 +56,7 @@ int main(void) {
 		sprintf(output, ":> %s", Buff);
 		mvaddstr(24, 1, output);
 		refresh();
-		for(i=0;i<MAX;i++) {
+		for(i=0;i<ln;i++) {
 			Buff[i]='\0';
 			output[i]='\0';
 		}
