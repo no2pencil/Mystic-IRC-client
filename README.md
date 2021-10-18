@@ -7,5 +7,7 @@ How to compile :
 
 ToDo List : 
   * Clear buffer of previous content
-  * Differeniate between comment & command
-  * Evaluate commands
+  * Continue to add functionality commands (NICK/WHOIS/Private Messaging)
+  * Fix the display, it doesn't work correctly
+  * Add logic to prevent > 80 characters in a message
+  * Display has ascii codes, not characters
