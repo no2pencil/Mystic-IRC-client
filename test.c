@@ -18,7 +18,7 @@
 #include "functions.h"
 
 int main(int argc, char *argv[]) {
-	int i=0, ln=1, a=0, n=0, s, ss, cont=0,pars_fl=0, inc=0, png=0, opt=0;
+	int i=0, ln=1, a=0, n=0, s, ss, errorcont=0, cont=0,pars_fl=0, inc=0, png=0, opt=0;
 	struct sockaddr_in addr;
 	struct hostent *he;
 	struct in_addr **addr_list;
@@ -28,8 +28,15 @@ int main(int argc, char *argv[]) {
 	char DisplayBuff[MAX]={0};
 	char command[MAX]={0};
 	char output[MAX]={0};
+	char * str, chanstr[16]={0}, nickstr[16]={0};
 	// Commands
-	char *join="/join", *ircConnect="/connect", *help="/help", *motd="/motd", *quit="/quit";
+	char *clear="/clear",
+	     *nick="/nick", 
+	     *join="/join", 
+	     *ircConnect="/connect", 
+	     *help="/help", 
+	     *motd="/motd", 
+	     *quit="/quit";
 
 	/* Before anything else, start a timer for random */
 	srand(time(NULL));
@@ -54,18 +61,16 @@ int main(int argc, char *argv[]) {
 	mvaddstr(24, 0, "Status [");
 	refresh();
 
-
-
 	if ((s=socket(AF_INET, SOCK_STREAM, 0)) == -1) {
 		perror("socket");
-		cont=1;
+		errorcont=1;
 		exit(1);
 	}
 	
 	/* DNS HOST ADDR */
 	if((he=gethostbyname(SERVERHOST))==NULL) {
 		perror("NS Translate");
-		cont=2;
+		errorcont=2;
 		exit(1);
 	}
 	
@@ -81,51 +86,54 @@ int main(int argc, char *argv[]) {
 	ss=connect(s, (struct sockaddr *)&addr, sizeof(addr));
 	if(ss<0) {
 		perror("connect");
-		cont=3;
+		errorcont=3;
 		exit(1);
 	}
 
 	sprintf(output, "Connected to %s", SERVERHOST);
-	mvaddstr(ln, 1, output);
+	//mvaddstr(ln, 1, output);
+        mvwaddnstr(chatWindow, ln, 1, output, sizeof(output));
 	ln++;
 	refresh();
 
 	sleep(2);
 
 	while(TRUE) {
-
-	n=0;
-	while(n<MAX) { // Clear socket buffers
-		RecvBuf[n]='\0';
-		SendBuf[n]='\0';
-		n++;
-	}
-	       
-	i=recv(s, RecvBuf, MAX, 0);
-	sprintf(output, "%d bytes received",i);
-	mvaddstr(ln, 1, output);
-	ln++;
-	refresh();
-	// Check for Ping-Pong from the server
-	
-	pvm=strtok(RecvBuf, " :!~\n");
-	n=0;
-	while(pvm!=NULL) {
-		sprintf(output, "%s",pvm);
-		mvaddstr(ln, 1, output);
+		n=0;
+		i=0;
+		while(i<MAX) { // Clear socket buffers
+			RecvBuf[i]='\0';
+			SendBuf[i]='\0';
+			i++;
+		}
+		i=recv(s, RecvBuf, MAX, 0);
+		sprintf(output, "%d bytes received",i);
+		//mvaddstr(ln, 1, output);
+        	mvwaddnstr(chatWindow, ln, 1, output, sizeof(output));
 		ln++;
 		refresh();
-		sprintf(Buff[n],"%s",pvm);
-		pvm=strtok (NULL, " :!~\n");
-		n++;
-	}
+		
+		// Check for Ping-Pong from the server
+		pvm=strtok(RecvBuf, " :!~\n");
+		while(pvm!=NULL) {
+			sprintf(output, "%s",pvm);
+			//mvaddstr(ln, 1, output);
+        		mvwaddnstr(chatWindow, ln, 1, output, sizeof(output));
+			ln++;
+			refresh();
+			sprintf(Buff[n],"%s",pvm);
+			pvm=strtok (NULL, " :!~\n");
+			n++;
+		}
 
-	sleep(2);
-
+		if(cont==0) 
+			sleep(2);
 
 		if(strcmp("PING", Buff[png])==0) {
 			sprintf(output, "PING Detected... Sending PONG! %s",Buff[1]);
-			mvaddstr(ln, 1, output);
+			//mvaddstr(ln, 1, output);
+        		mvwaddnstr(chatWindow, ln, 1, output, sizeof(output));
+			refresh();
 			ln++;
 			sprintf(SendBuf,"PONG %s%s\r\n", Buff[1],Buff[7]);
 			if(send(s,SendBuf,strlen(SendBuf),0)<0) {
@@ -138,7 +146,7 @@ int main(int argc, char *argv[]) {
 			sprintf(SendBuf, "NICK %s\r\nUSER %s %s %s : TestBot \rnJOIN %s\r\n", NICK, USER, IDENT< IDENT, CHAN);
 			if(send(s,SendBuf,strlen(SendBuf),0)<0) {
 				perror("Transmit");
-				cont=10;
+				errorcont=10;
 			}
 			sprintf(SendBuf, "JOIN %s\r\n", CHAN);
 			if(send(s,SendBuf,strlen(SendBuf),0)<0) {
@@ -148,17 +156,11 @@ int main(int argc, char *argv[]) {
 				SendBuf[n]='\0';
 				n++;
 			}
-			sleep(3);
-		} else {
-			sprintf(output, "Attempting to connect");
-			mvaddstr(ln, 1, output);
-			ln++;
-			refresh();
+			sleep(2);
+			cont++;
 		}
 
-
 		i=0;
-
 		while(i<80) {
 			scanf("%c",&DisplayBuff[i]);
 			sprintf(output, ":> %i [ %s ]",i, DisplayBuff);
@@ -182,17 +184,26 @@ int main(int argc, char *argv[]) {
 						mvaddstr(24, 0, output);
 						refresh();
 						
-						if(cont==0) {
+						if(cont==1) {
 							sprintf(output, "Connected to [ %s ]",SERVERHOST);
 						} else {
-							sprintf(output, "Unable to connect [ %i ] to [ %s ]",cont, SERVERHOST);
+							sprintf(output, "Unable to connect [ %i ] to [ %s ]",errorcont, SERVERHOST);
 							/* Need to collect return code & display a more informative error */
 						}
 						mvaddstr(24, 0, output);
 						refresh();
 				}
 				if(strstr(command,join)>0) {
-					sprintf(SendBuf, "JOIN %s\r\n", CHAN);
+					i=0;
+					str = strtok(command," ");
+					while(str != NULL) {
+						str = strtok (NULL, " ");
+						i++;
+						if(i==1) {
+							sprintf(chanstr, "%s", str);
+						}
+					}
+					sprintf(SendBuf, "JOIN %s\r\n", chanstr);
 					if(send(s,SendBuf,strlen(SendBuf),0)<0) {
 						perror("Join");
 					}
@@ -201,15 +212,35 @@ int main(int argc, char *argv[]) {
 						n++;
 					}
 					// Avoid Flooding the server with joins
-					sleep(3);
+					sleep(1);
 					mvaddstr(24, 0 , output);
 				}
 				if(strstr(command,help)>0) {
 					printhelp();
 					wrefresh(chatWindow);
 				}
+				if(strstr(command,clear)>0) {
+					werase(chatWindow);
+					box(chatWindow, 0, 0);
+					wrefresh(chatWindow);
+				}
+				if(strstr(command,nick)>0) {
+					i=0;
+					str = strtok(command," ");
+					while(str != NULL) {
+						str = strtok (NULL, " ");
+						i++;
+						if(i==1) {
+							sprintf(nickstr, "%s", str);
+						}
+					}
+					sprintf(SendBuf, "NICK %s\r\n",nickstr);
+					if(send(s,SendBuf,strlen(SendBuf),0)<0) {
+						perror("Nick Change");
+					}
+				}
 				if(strstr(command,quit)>0) {
-					sprintf(SendBuf,"Returning to the BBS! Tank, I need an exit!");
+					sprintf(SendBuf,"QUIT Returning to the BBS! Tank, I need an exit!\r\n\r\n");
 					if(send(s,SendBuf,strlen(SendBuf),0)<0) {
 						perror("Quit"); // Does it matter?
 					}
@@ -218,7 +249,6 @@ int main(int argc, char *argv[]) {
 					return 0;
 				}
 			} else {
-				//sprintf(output, "Received %s",DisplayBuff);
 				sprintf(SendBuf,"PRIVMSG %s %s\r\n", CHAN, DisplayBuff);
 				if(send(s,SendBuf,strlen(SendBuf),0)<0) {
 					perror("Error with message");
@@ -238,6 +268,8 @@ int main(int argc, char *argv[]) {
 		sprintf(output, "Status [                                                            ]");
 		mvaddstr(24, 0, output);
 		i=0;
+		DisplayBuff[i]='\0';
+		output[i]='\0';
 		wrefresh(chatWindow);
 	}
 
